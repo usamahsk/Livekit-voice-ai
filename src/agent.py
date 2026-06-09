@@ -1,47 +1,40 @@
 import logging
+from datetime import UTC, datetime
+import aiohttp
+import asyncio
 from dotenv import load_dotenv
 import sentry_sdk
-from livekit import rtc
 from livekit.agents import (
     Agent,
     AgentServer,
     AgentSession,
     JobContext,
-    JobProcess,
-    TurnHandlingOptions,
-    AudioConfig,
-    BackgroundAudioPlayer,
-    BuiltinAudioClip,
+    RunContext,
+    ToolError,
     cli,
+    function_tool,
+    get_job_context,
     inference,
+    llm,
     room_io,
+    utils,
 )
 from livekit.agents.beta.tools import EndCallTool
-from livekit.plugins import (
-    ai_coustics,
-    silero,
-    xai,
-)
-from livekit.plugins.turn_detector.multilingual import MultilingualModel
-from livekit.plugins import google
+from livekit.agents.llm.chat_context import ChatContext
+from livekit.plugins import ai_coustics, google
 
 sentry_sdk.init(
     dsn="https://9367cc1c6e7bc23f625910045da9a1eb@o4511500643598336.ingest.us.sentry.io/4511535884599296",
-    # Add data like request headers and IP for users,
-    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
     send_default_pii=True,
 )
 
-
 logger = logging.getLogger("agent-Cameron-18e")
-
 load_dotenv(".env.local")
 
 
 class DefaultAgent(Agent):
     def __init__(self) -> None:
-        super().__init__(
-            instructions="""Synthesize speech for the performance defined below. The profile, scene,
+        self._agent_instructions = """Synthesize speech for the performance defined below. The profile, scene,
 performance notes, and context are direction only. Do NOT speak them.
 Speak ONLY as this character in live conversation.
 
@@ -54,12 +47,68 @@ He is professional, warm, and gets to the point quickly. He speaks like
 a real person — not a robot reading a script.
 
 ### PERFORMANCE
-Style: Warm, confident, professional. Never robotic, never overly formal.
-Pace: Natural conversational rhythm. Brief natural pause before pricing.
-Accent: Indian English accent or Hindi ONLY . Do NOT change accent at any point
-during the call. Maintain the EXACT same Indian English accent or Hindi from the
-first word to the last word. Never shift to British, American, Australian,
-Russian, or any other accent. Not even slightly. Fixed Indian English accent or Hindi always.
+# Voice Agent Language & Accent Instructions
+
+## Personality
+
+Style: Warm, confident, professional. Never robotic. Never overly formal.
+
+Pace: Natural conversational rhythm. Short natural pauses where appropriate.
+
+## Language Adaptation
+
+Detect the user's language from their first message and respond in the same language whenever possible.
+
+Supported languages:
+
+* English
+* Hindi
+* Kannada
+
+If the user switches languages during the conversation, smoothly switch to the new language and continue in that language.
+
+Examples:
+
+* User speaks English → Respond in English.
+* User speaks Hindi → Respond in Hindi.
+* User speaks Kannada → Respond in Kannada.
+* User mixes Hindi and English → Respond naturally in Hinglish.
+* User mixes Kannada and English → Respond naturally in Kannada-English.
+
+Never force English when the user is speaking Hindi or Kannada.
+
+## Accent Rules
+
+When speaking English:
+
+* Use a natural Indian English accent.
+* Maintain a consistent Indian English pronunciation throughout the conversation.
+
+When speaking Hindi:
+
+* Use natural Indian Hindi pronunciation.
+
+When speaking Kannada:
+
+* Use natural Kannada pronunciation and intonation.
+
+Do not switch to American, British, Australian, or other foreign accents unless the user explicitly requests it.
+
+## Multilingual Behavior
+
+* Match the user's communication style.
+* Match the user's language preference.
+* Preserve important technical terms in English when they are commonly used that way.
+* If the user's language is unclear, politely ask which language they prefer:
+  "Would you like to continue in English, Hindi, or Kannada?"
+
+## Voice Quality
+
+* Sound friendly and conversational.
+* Avoid sounding scripted.
+* Keep responses concise unless detailed explanations are requested.
+* Prioritize clarity and natural speech flow.
+
 
 ### CONTEXT
 Rayan works for Vanalaya — a natural organic wellness brand headquartered
@@ -195,7 +244,7 @@ is applied — your final amount is ₹855. Your A2 Pure Buffalo Ghee
 will be dispatched within 1 to 2 business days after payment.
 Thank you so much, have a wonderful day!\"
 
-END CALL.
+Use the `end_call` tool immediately after completing this statement.
 
 ---
 
@@ -240,11 +289,11 @@ END CALL immediately. Do not push further. Do not repeat the offer.
 2. The product is A2 Pure Buffalo Ghee, 500ml, ₹950 original,
    ₹855 discounted. Never say any other price or product name
    for this call.
-3. ACCENT — Indian English or Hindi only. Same accent, start to finish.
+3. ACCENT — Indian English or Hindi or Kannada only. Same accent, start to finish.
    Never changes. Not for any reason.
 4. If Aamir speaks in Hindi or Kannada, respond in simple
-   Indian English  or Hindi naturally. Do NOT say \"I can only communicate
-   in Indian English or Hindi.\" Just respond normally in Indian English or Hindi.
+   Indian English  or Hindi or Kannada naturally. Do NOT say \"I can only communicate
+   in Indian English or Hindi or Kannada.\" Just respond normally in Indian English or Hindi or Kannada.
 5. Max 3 sentences per response. This is a phone call.
 6. Never ask for address fields separately upfront. One simple
    ask only — \"Sir, please share your delivery address.\"
@@ -255,32 +304,135 @@ END CALL immediately. Do not push further. Do not repeat the offer.
 9. If Aamir is rude or abusive, apologize once calmly and
    end the call politely.
 10. Always confirm the delivery address by repeating it back
-    before moving to STEP 5.""",
-            tools=[EndCallTool(
-                extra_description="""""",
-                end_instructions="""Thank the user for their time and say goodbye.""",
-                delete_room=False,
-            )],
+    before moving to STEP 5."""
+        
+        super().__init__(
+            instructions=self._agent_instructions,
+            tools=[
+                EndCallTool(
+                    extra_description="Call this tool to disconnect the call when the conversation finishes.",
+                    end_instructions="Thank the user for their time and say goodbye.",
+                    delete_room=True,
+                )
+            ],
         )
-    async def on_enter(self):
-        await self.session.generate_reply(
-            instructions="""Greet the user and offer your assistance.""",
-            allow_interruptions=True,
-        )
+
+    @function_tool(name="record_name")
+    async def record_name(self, context: RunContext, name: str):
+        """Call immediately when the caller provides or confirms their name.
+
+        Args:
+            name (str): The name of the caller.
+        """
+        logger.info(f"Successfully recorded name: {name}")
+        ctx = get_job_context()
+        if ctx.proc.userdata.get("dc_results") is None:
+            ctx.proc.userdata["dc_results"] = {}
+        ctx.proc.userdata["dc_results"]["name"] = name
+
+    @function_tool(name="record_product_details")
+    async def record_product_details(self, context: RunContext, product_name: str, product_price: str):
+        """Call immediately when product choices, quantities, or confirmed order pricing details are finalized.
+
+        Args:
+            product_name (str): The name of the product.
+            product_price (str): The confirmed price of the product.
+        """
+        logger.info(f"Successfully recorded product details: {product_name} at {product_price}")
+        ctx = get_job_context()
+        if ctx.proc.userdata.get("dc_results") is None:
+            ctx.proc.userdata["dc_results"] = {}
+        ctx.proc.userdata["dc_results"]["product_details"] = {
+            "product_name": product_name,
+            "product_price": product_price
+        }
 
 
-server = AgentServer()
+server = AgentServer(shutdown_process_timeout=60.0)
 
-@server.rtc_session(agent_name="voice-assistant")
+async def _summarize_session(summarizer: inference.LLM, chat_ctx: ChatContext) -> str | None:
+    summary_ctx = ChatContext()
+    summary_ctx.add_message(
+        role="system",
+        content="Summarize the following conversation concisely. Collect every user detail, analyze it, and summarize it.",
+    )
+
+    n_summarized = 0
+    for item in chat_ctx.items:
+        if item.type != "message" or item.role not in ("user", "assistant"):
+            continue
+        if item.extra.get("is_summary") is True:
+            continue
+
+        text = (item.text_content or "").strip()
+        if text:
+            summary_ctx.add_message(role="user", content=f"{item.role}: {text}")
+            n_summarized += 1
+
+    if n_summarized == 0:
+        logger.debug("No chat messages to summarize")
+        return None
+
+    response = await summarizer.chat(
+        chat_ctx=summary_ctx,
+        extra_kwargs={"reasoning_effort": "medium"},
+    ).collect()
+    return response.text.strip() if response.text else None
+
+
+async def _on_session_end_func(ctx: JobContext) -> None:
+    ended_at = datetime.now(UTC)
+    session = ctx._primary_agent_session
+    if not session:
+        logger.error("No primary agent session found for end_of_call processing")
+        return
+
+    report = ctx.make_session_report()
+    # Using text-based flash model to securely summarize history post-session
+    summarizer = inference.LLM(model="google/gemini-3.1-flash-lite")
+    summary = await _summarize_session(summarizer, report.chat_history)
+    
+    body = {
+        "job_id": report.job_id,
+        "room_id": report.room_id,
+        "room": report.room,
+        "started_at": datetime.fromtimestamp(report.started_at, UTC).isoformat().replace("+00:00", "Z") if report.started_at else None,
+        "ended_at": ended_at.isoformat().replace("+00:00", "Z"),
+        "summary": summary,
+    }
+    
+    dc_results = ctx.proc.userdata.get("dc_results")
+    if dc_results is not None:
+        body["results"] = dc_results
+
+    try:
+        http_sess = utils.http_context.http_session()
+        timeout = aiohttp.ClientTimeout(total=10)
+        resp = await asyncio.shield(http_sess.post(
+            "https://n8n.larynxai.in/webhook/fa75fac6-fe21-4b8c-b391-f1363583477e", 
+            timeout=timeout, 
+            json=body
+        ))
+        if resp.status >= 400:
+            raise ToolError(f"Webhook error: HTTP {resp.status}: {resp.reason}")
+        await resp.release()
+    except ToolError:
+        raise
+    except (TimeoutError, aiohttp.ClientError) as e:
+        raise ToolError(f"HTTP Error: {e!s}") from e
+
+
+@server.rtc_session(agent_name="Cameron-18e", on_session_end=_on_session_end_func)
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
-    llm=google.realtime.RealtimeModel(
-        model="gemini-3.1-flash-live-preview",
-        voice="Zephyr",
-        temperature=0.7
-    ),
-)
+        llm=google.realtime.RealtimeModel(
+            model="gemini-3.1-flash-live-preview",
+            voice="Zephyr"
+        ),
+    )
+    ctx.proc.userdata["dc_results"] = None
 
+    # Start the session using the streamlined DefaultAgent
     await session.start(
         agent=DefaultAgent(),
         room=ctx.room,
@@ -292,12 +444,6 @@ async def entrypoint(ctx: JobContext):
             ),
         ),
     )
-
-    background_audio = BackgroundAudioPlayer(
-        ambient_sound=AudioConfig(BuiltinAudioClip.OFFICE_AMBIENCE, volume=1.0),
-    )
-
-    await background_audio.start(room=ctx.room, agent_session=session)
 
 
 if __name__ == "__main__":
