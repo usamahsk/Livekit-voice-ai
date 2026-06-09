@@ -36,3 +36,5 @@ venv
 # GitHub CLI
 .github/personal-instructions.md
 
+deploy_command
+

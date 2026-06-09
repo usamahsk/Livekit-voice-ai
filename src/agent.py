@@ -387,7 +387,7 @@ async def _on_session_end_func(ctx: JobContext) -> None:
 
     report = ctx.make_session_report()
     # Using text-based flash model to securely summarize history post-session
-    summarizer = inference.LLM(model="google/gemini-3.1-flash-lite")
+    summarizer = inference.LLM(model="google/gemini-3.1-flash-lite",api_key=os.getenv("GOOGLE_API_KEY"))
     summary = await _summarize_session(summarizer, report.chat_history)
     
     body = {
