@@ -22,6 +22,7 @@ from livekit.agents import (
 from livekit.agents.beta.tools import EndCallTool
 from livekit.agents.llm.chat_context import ChatContext
 from livekit.plugins import ai_coustics, google
+import os
 
 sentry_sdk.init(
     dsn="https://9367cc1c6e7bc23f625910045da9a1eb@o4511500643598336.ingest.us.sentry.io/4511535884599296",
