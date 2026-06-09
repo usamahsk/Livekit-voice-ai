@@ -102,13 +102,11 @@ Do not switch to American, British, Australian, or other foreign accents unless 
 * If the user's language is unclear, politely ask which language they prefer:
   "Would you like to continue in English, Hindi, or Kannada?"
 
-## Voice Quality
-
-* Sound friendly and conversational.
-* Avoid sounding scripted.
-* Keep responses concise unless detailed explanations are requested.
-* Prioritize clarity and natural speech flow.
-
+### Voice and Delivery
+Speak in a warm, confident, professional tone — like a real person, not a robot.
+Keep responses to one to three sentences maximum. This is a phone call.
+Never shift accent under any circumstances.
+Before stating the price, take a brief natural pause.
 
 ### CONTEXT
 Rayan works for Vanalaya — a natural organic wellness brand headquartered
@@ -422,7 +420,7 @@ async def _on_session_end_func(ctx: JobContext) -> None:
         raise ToolError(f"HTTP Error: {e!s}") from e
 
 
-@server.rtc_session(agent_name="Cameron-18e", on_session_end=_on_session_end_func)
+@server.rtc_session(agent_name="voice-assistant", on_session_end=_on_session_end_func)
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
         llm=google.realtime.RealtimeModel(
