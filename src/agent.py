@@ -29,7 +29,7 @@ sentry_sdk.init(
     send_default_pii=True,
 )
 
-logger = logging.getLogger("agent-Cameron-18e")
+logger = logging.getLogger("voice-assistant")
 load_dotenv(".env.local")
 
 
