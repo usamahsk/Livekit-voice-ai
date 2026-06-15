@@ -75,9 +75,6 @@ COPY --from=build --chown=appuser:appuser /app /app
 
 WORKDIR /app
 
-# Create data directory and set ownership for shared volume config persistence
-RUN mkdir -p /app/data && chown -R appuser:appuser /app/data
-
 # Switch to the non-privileged user for all subsequent operations
 # This improves security by not running as root
 USER appuser
