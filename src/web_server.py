@@ -40,7 +40,7 @@ class PremiumVoiceConfig(BaseModel):
 
 class AgentConfig(BaseModel):
     voice_mode: str
-    active_prompt_id: str
+    active_prompt_id: str = "custom"
     custom_prompt: str
     standard_voice: StandardVoiceConfig
     premium_voice: PremiumVoiceConfig

@@ -390,10 +390,9 @@ async def entrypoint(ctx: JobContext):
     voice_mode = config.get("voice_mode", "standard")
 
     # 1. Load active instructions
-    active_prompt_id = config.get("active_prompt_id", "outbound_ghee")
-    if active_prompt_id == "custom":
-        instructions = config.get("custom_prompt", "")
-    else:
+    instructions = config.get("custom_prompt", "").strip()
+    if not instructions:
+        active_prompt_id = config.get("active_prompt_id", "outbound_ghee")
         instructions = PROMPTS.get(active_prompt_id, PROMPTS["outbound_ghee"])
 
     # 2. Configure session depending on voice infrastructure mode

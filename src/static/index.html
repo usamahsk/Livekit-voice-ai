@@ -373,27 +373,6 @@
                 System Instructions & Prompts
             </div>
 
-            <div class="form-group">
-                <label>Select Template</label>
-                <div class="radio-group-container">
-                    <input type="radio" name="prompt_template" id="tpl_outbound" class="prompt-template-radio"
-                        value="outbound_ghee" checked>
-                    <label for="tpl_outbound" class="radio-label">COD Confirmation</label>
-
-                    <input type="radio" name="prompt_template" id="tpl_support" class="prompt-template-radio"
-                        value="customer_service">
-                    <label for="tpl_support" class="radio-label">Add to Cart</label>
-
-                    <input type="radio" name="prompt_template" id="tpl_receptionist" class="prompt-template-radio"
-                        value="front_desk">
-                    <label for="tpl_receptionist" class="radio-label">Review Agent</label>
-
-                    <input type="radio" name="prompt_template" id="tpl_custom" class="prompt-template-radio"
-                        value="custom">
-                    <label for="tpl_custom" class="radio-label">Custom</label>
-                </div>
-            </div>
-
             <div class="form-group" style="flex-grow: 1;">
                 <label for="prompt_text">Active System Prompt Instructions</label>
                 <textarea id="prompt_text"
@@ -721,24 +700,6 @@ Your job is to greet callers, understand who or which department they are trying
             });
         });
 
-        // Toggle prompt templates
-        document.querySelectorAll('input[name="prompt_template"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                const val = e.target.value;
-                if (val === 'custom') {
-                    promptTextarea.value = customPromptVal;
-                    promptTextarea.removeAttribute('readonly');
-                } else {
-                    // Save custom prompt state before switching away
-                    if (document.querySelector('input[name="prompt_template"]:checked').value === 'custom') {
-                        customPromptVal = promptTextarea.value;
-                    }
-                    promptTextarea.value = prompts[val] || '';
-                    promptTextarea.setAttribute('readonly', 'true');
-                }
-            });
-        });
-
         // Fetch current config
         async function fetchConfig() {
             try {
@@ -753,19 +714,13 @@ Your job is to greet callers, understand who or which department they are trying
                     modeRadio.dispatchEvent(new Event('change'));
                 }
 
-                // Set prompt templates
-                const promptRadio = document.getElementById(`tpl_${config.active_prompt_id}`);
-                if (promptRadio) {
-                    promptRadio.checked = true;
-                }
-
-                if (config.active_prompt_id === 'custom') {
-                    customPromptVal = config.custom_prompt;
-                    promptTextarea.value = customPromptVal;
-                    promptTextarea.removeAttribute('readonly');
+                // Set prompt
+                if (config.custom_prompt && config.custom_prompt.trim()) {
+                    promptTextarea.value = config.custom_prompt;
+                } else if (config.active_prompt_id && prompts[config.active_prompt_id]) {
+                    promptTextarea.value = prompts[config.active_prompt_id];
                 } else {
-                    promptTextarea.value = prompts[config.active_prompt_id] || '';
-                    promptTextarea.setAttribute('readonly', 'true');
+                    promptTextarea.value = prompts.outbound_ghee || '';
                 }
 
                 // Set Standard fields
@@ -789,17 +744,13 @@ Your job is to greet callers, understand who or which department they are trying
 
         // Save config
         saveBtn.addEventListener('click', async () => {
-            const activePromptId = document.querySelector('input[name="prompt_template"]:checked').value;
             const voiceMode = document.querySelector('input[name="voice_mode"]:checked').value;
-
-            if (activePromptId === 'custom') {
-                customPromptVal = promptTextarea.value;
-            }
+            const promptVal = promptTextarea.value;
 
             const payload = {
                 voice_mode: voiceMode,
-                active_prompt_id: activePromptId,
-                custom_prompt: customPromptVal,
+                active_prompt_id: "custom",
+                custom_prompt: promptVal,
                 standard_voice: {
                     model: document.getElementById('std_model').value,
                     voice: document.getElementById('std_voice').value
