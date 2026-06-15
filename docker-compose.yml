@@ -17,6 +17,8 @@ services:
       dockerfile: Dockerfile
     command: ["uv", "run", "python", "src/web_server.py"]
     restart: unless-stopped
+    ports:
+      - "8000:8000"
     env_file:
       - .env.local
     environment:
@@ -24,18 +26,5 @@ services:
     volumes:
       - agent-config:/app/data
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - caddy_data:/data
-      - caddy_config:/config
-    command: caddy reverse-proxy --from builder.larynxai.in --to web-server:8000
-
 volumes:
   agent-config:
-  caddy_data:
-  caddy_config:
