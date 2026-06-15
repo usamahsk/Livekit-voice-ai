@@ -1,0 +1,8 @@
+{
+    "trunk": {
+      "name": "larynxai trunk",
+      "address": "larynxai-demo-trunk.pstn.twilio.com",
+      "numbers": ["*"]
+    }
+  }
+

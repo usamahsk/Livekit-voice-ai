@@ -1,0 +1,16 @@
+{
+  "voice_mode": "premium",
+  "active_prompt_id": "customer_service",
+  "custom_prompt": "",
+  "standard_voice": {
+    "model": "gemini-3.1-flash-live-preview",
+    "voice": "Zephyr"
+  },
+  "premium_voice": {
+    "stt_provider": "google",
+    "stt_language": "en-IN",
+    "llm_model": "gemini-3.1-flash-lite",
+    "tts_model": "minimax",
+    "tts_voice_id": "my-custom-premium-voice"
+  }
+}
