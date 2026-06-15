@@ -443,17 +443,10 @@ async def entrypoint(ctx: JobContext):
         llm_model = std_cfg.get("llm_model", "gemini-2.0-flash")
         tts_voice = std_cfg.get("tts_voice", "").strip()
 
-        # STT: prefer Google Cloud STT if credentials available, else LiveKit Inference
-        if os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or os.getenv(
-            "GOOGLE_CREDENTIALS_JSON"
-        ):
-            logger.info(f"[Standard] Using Google STT, language={stt_language}")
-            stt = google.STT(languages=[stt_language])
-        else:
-            logger.warning(
-                "[Standard] No Google credentials found — falling back to Deepgram STT via LiveKit Inference"
-            )
-            stt = inference.STT(model="deepgram/nova-3-general", language="multi")
+        # STT: LiveKit Inference (Deepgram Nova-3) — no separate API key needed,
+        # billed through your LiveKit Cloud account. Supports EN/HI/KN multilingual.
+        logger.info(f"[Standard] Using Deepgram Nova-3 STT via LiveKit Inference (language={stt_language})")
+        stt = inference.STT(model="deepgram/nova-3-general", language="multi")
 
         # LLM: Google Gemini
         logger.info(f"[Standard] Using Google LLM, model={llm_model}")
