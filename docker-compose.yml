@@ -22,7 +22,7 @@ services:
     volumes:
       - config_vol:/app/shared
     ports:
-      - "127.0.0.1:8080:8000"
+      - "127.0.0.1:9090:8000"
     restart: unless-stopped
     depends_on:
       - agent
