@@ -12,16 +12,13 @@ dependencies = [
     "livekit-agents[google,silero,turn-detector,xai]~=1.5",
     "livekit-plugins-ai-coustics~=0.2",
     "livekit-plugins-noise-cancellation~=0.2",
-    "livekit-plugins-minimax-ai",
-    "fastapi",
-    "uvicorn[standard]",
     "python-dotenv",
     "python-handlebars",
     "sentry-sdk",
 ]
 
 [dependency-groups]
-dev = ["pytest", "pytest-asyncio", "ruff", "httpx"]
+dev = ["pytest", "pytest-asyncio", "ruff"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
