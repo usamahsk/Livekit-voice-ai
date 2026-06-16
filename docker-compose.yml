@@ -10,7 +10,7 @@ services:
     volumes:
       - config_vol:/app/shared
     networks:
-      - livekit-infra_default
+      - livekit-net
       - default
     restart: unless-stopped
 
@@ -24,8 +24,8 @@ services:
       - CONFIG_PATH=/app/shared/config.json
     volumes:
       - config_vol:/app/shared
-    networks:
-      - livekit-infra_default
+    nnetworks:
+      - livekit-net
       - default
     ports:
       - "127.0.0.1:9090:8000"
@@ -38,5 +38,5 @@ volumes:
     driver: local
 
 networks:
-  livekit-infra_default:
+  livekit-net:
     external: true
