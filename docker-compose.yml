@@ -24,7 +24,7 @@ services:
       - CONFIG_PATH=/app/shared/config.json
     volumes:
       - config_vol:/app/shared
-    nnetworks:
+    networks:
       - livekit-net
       - default
     ports:
