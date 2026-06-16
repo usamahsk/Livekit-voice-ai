@@ -1,0 +1,40 @@
+services:
+  # LiveKit Voice Agent
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env.local
+    environment:
+      - CONFIG_PATH=/app/shared/config.json
+    volumes:
+      - config_vol:/app/shared
+    # ─── USE HOST NETWORKING ───────────────────────────────
+    network_mode: "host"
+    # ───────────────────────────────────────────────────────
+    restart: unless-stopped
+
+  # Web Control Panel (proxied by Nginx → port 8000)
+  webui:
+    build:
+      context: .
+      dockerfile: Dockerfile.webui
+    env_file: .env.local
+    environment:
+      - CONFIG_PATH=/app/shared/config.json
+    volumes:
+      - config_vol:/app/shared
+    # ─── USE HOST NETWORKING ───────────────────────────────
+    network_mode: "host"
+    # ───────────────────────────────────────────────────────
+    # NOTE: positions like `ports:` are completely ignored 
+    # when using host mode, because the container automatically 
+    # binds directly to the application's internal port (e.g. 8000) 
+    # right on your host machine.
+    restart: unless-stopped
+    depends_on:
+      - agent
+
+volumes:
+  config_vol:
+    driver: local
