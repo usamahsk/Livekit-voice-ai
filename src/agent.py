@@ -19,6 +19,7 @@ from livekit.plugins import (
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from livekit.plugins import sarvam
 from livekit.plugins import cartesia
+from livekit.plugins import google
 
 
 # Import the agents we defined in other files
@@ -52,25 +53,25 @@ async def entrypoint(ctx: JobContext):
     agent_type="orderconfirmation"
     # 3. Select Agent and Model conditionally
     if agent_type == "Cart":
-        target_llm_model = "google/gemini-2.5-flash-lite"
+        target_llm_model = "gemini-2.5-flash-lite"
         active_agent = AddtoCartAgent(metadata=metadata_str)
 
     elif agent_type == "Review":
-        target_llm_model = "google/gemini-2.5-flash-lite"
+        target_llm_model = "gemini-2.5-flash-lite"
         active_agent = ReviewAgent(metadata=metadata_str)
 
     elif agent_type == "orderconfirmation":
-        target_llm_model = "google/gemini-2.5-flash-lite"
+        target_llm_model = "gemini-2.5-flash-lite"
         active_agent = OrderConfirmationAgent(metadata=metadata_str)
 
     else:  # "customersupport" or fallback
-        target_llm_model = "google/gemini-2.5-flash-lite"
+        target_llm_model = "gemini-2.5-flash-lite"
         active_agent = CustomerSupportAgent()
 
     # 4. Initialize the session using the selected agent setup
     session = AgentSession(
         stt=sarvam.STT(model="saaras:v3",sample_rate=16000),
-        llm=inference.LLM(
+        llm=google.LLM(
             model=target_llm_model,
         ),
         tts=cartesia.TTS(
