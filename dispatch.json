@@ -1,6 +1,0 @@
-{
-  "agent_name": "voice-assistant",
-  "room_name_prefix": "my-sip-room",
-  "metadata": "Outbound SIP Agent Routing"
-}
-
