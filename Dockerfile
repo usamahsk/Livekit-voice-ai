@@ -54,6 +54,8 @@ COPY . .
 # dependencies at runtime, which improves startup time and reliability
 RUN uv run --module livekit.agents download-files
 
+RUN uv run python -m livekit.agents download-files
+
 # --- Production stage ---
 # Build tools (gcc, g++, python3-dev) are not included in the final image
 FROM base
