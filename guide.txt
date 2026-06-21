@@ -1,0 +1,25 @@
+1. Create the Configuration File
+Create a new file named vobiz-trunk.json on your Hetzner server and paste the following structure. Replace the placeholders with your Vobiz SIP domain and your purchased Vobiz phone number (ensure the number is in E.164 format, like +1234567890).
+
+JSON
+{
+  "trunk": {
+    "name": "vobiz-outbound",
+    "address": "<vobiz-sip-domain-or-ip>",
+    "numbers": ["<your-vobiz-phone-number>"]
+  }
+}
+2. Register the Trunk via CLI
+Run the following command to create the trunk on your local LiveKit server. You will need to pass your Vobiz SIP username and password using the --auth-user and --auth-pass flags.
+
+Bash
+lk sip outbound create vobiz-trunk.json \
+  --url http://localhost:7880 \
+  --api-key devkey \
+  --api-secret secret \
+  --auth-user "<your-vobiz-sip-username>" \
+  --auth-pass "<your-vobiz-sip-password>"
+3. Copy the Trunk ID
+If the command is successful, the output will return the details of your new trunk, including a SIPTrunkID that starts with ST_.
+
+Copy that exact string, paste it into your Phone.py script where the <your-vobiz-trunk-id> placeholder is, and run your Python script again. LiveKit will now know exactly how to route the call.

@@ -1,0 +1,7 @@
+{
+  "trunk": {
+    "name": "vobiz-outbound",
+    "address": "661c8cba.sip.vobiz.ai",
+    "numbers": ["+918065481614"]
+  }
+}
