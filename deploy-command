@@ -1,0 +1,13 @@
+# 1. Rebuild the image blueprint
+docker build -t vobiz-voice-agent .
+
+# 2. Kill the old container instance and launch fresh
+docker rm -f voice-ai-worker
+docker run -d \
+  --name voice-ai-worker \
+  --network host \
+  --restart always \
+  --stop-timeout 900 \
+  -v $(pwd)/.env.local:/app/.env.local \
+  --env-file .env.local \
+  vobiz-voice-agent
