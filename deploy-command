@@ -11,3 +11,15 @@ docker run -d \
   -v $(pwd)/.env.local:/app/.env.local \
   --env-file .env.local \
   vobiz-voice-agent
+
+
+  ```
+curl -X POST "https://livekit.larynxai.in/make-call" \
+-H "Content-Type: application/json" \
+-d '{
+  "target_number": "+919967835090",
+  "customer_name": "John Doe",
+  "intent": "outbound automated follow-up",
+  "agent_type": "Cart"
+}'
+```

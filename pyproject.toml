@@ -10,7 +10,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "datetime>=6.0",
-    "livekit-agents[cartesia,sarvam,silero,turn-detector]~=1.5",
+    "livekit-agents[cartesia,google,sarvam,silero,turn-detector]~=1.5",
     "livekit-plugins-ai-coustics~=0.2",
     "livekit-plugins-noise-cancellation~=0.2",
     "python-dotenv",

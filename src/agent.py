@@ -22,7 +22,8 @@ from livekit.plugins import (
     ai_coustics,
     silero,
     sarvam,
-    cartesia
+    cartesia,
+    google
 )
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
@@ -57,7 +58,7 @@ async def _on_session_end_func(ctx: JobContext) -> None:
         return
 
     report = ctx.make_session_report()
-    summarizer = inference.LLM(model="openai/gpt-4.1")
+    summarizer = google.LLM(model="gemini-2.5-flash",api_key=os.getenv("GEMINI_API_KEY"))
     summary = await _summarize_session(summarizer, report.chat_history)
     
     headers_dict = {}
@@ -127,7 +128,7 @@ async def entrypoint(ctx: JobContext):
     # 4. Initialize the session using the selected agent setup
     session = AgentSession(
         stt=sarvam.STT(model="saaras:v3",sample_rate=16000),
-        llm=inference.LLM(
+        llm=google.LLM(
             model=target_llm_model,
         ),
         tts=cartesia.TTS(
