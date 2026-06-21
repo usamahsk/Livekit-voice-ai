@@ -58,7 +58,7 @@ async def _on_session_end_func(ctx: JobContext) -> None:
         return
 
     report = ctx.make_session_report()
-    summarizer = google.LLM(model="gemini-2.5-flash",api_key=os.getenv("GEMINI_API_KEY"))
+    summarizer = google.LLM(model="google/gemini-2.5-flash")
     summary = await _summarize_session(summarizer, report.chat_history)
     
     headers_dict = {}
