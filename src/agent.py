@@ -1,6 +1,10 @@
 import logging
 import json
+import asyncio
+import aiohttp
+from datetime import datetime,UTC
 from dotenv import load_dotenv
+
 from livekit import rtc
 from livekit.agents import (
     AgentServer,
@@ -8,19 +12,19 @@ from livekit.agents import (
     JobContext,
     JobProcess,
     TurnHandlingOptions,
+    ToolError,
     cli,
     inference,
+    utils,
     room_io,
 )
 from livekit.plugins import (
     ai_coustics,
     silero,
+    sarvam,
+    cartesia
 )
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
-from livekit.plugins import sarvam
-from livekit.plugins import cartesia
-from livekit.plugins import google
-
 
 # Import the agents we defined in other files
 from agent_support import CustomerSupportAgent
@@ -28,17 +32,66 @@ from agent_add_to_cart import AddtoCartAgent
 from agent_review import ReviewAgent
 from agent_order_confirmation import OrderConfirmationAgent
 
+# Import shared functions
+from shared_utils import _summarize_session
+
 logger = logging.getLogger("ecommerce-agent")
 load_dotenv(".env.local")
 
-server = AgentServer()
+server = AgentServer(shutdown_process_timeout=60.0)
 
 def prewarm(proc: JobProcess):
-    proc.userdata["vad"] = silero.VAD.load()
+    proc.userdata["vad"] = silero.VAD.load(
+        activation_threshold=0.7,  
+        min_speech_duration=0.25, 
+        min_silence_duration=1.0,
+    )
 
 server.setup_fnc = prewarm
 
-@server.rtc_session(agent_name="ecommerce-agent")
+async def _on_session_end_func(ctx: JobContext) -> None:
+    ended_at = datetime.now(UTC)
+    session = ctx._primary_agent_session
+    if not session:
+        logger.error("no primary agent session found for end_of_call processing")
+        return
+
+    report = ctx.make_session_report()
+    summarizer = inference.LLM(model="openai/gpt-4.1")
+    summary = await _summarize_session(summarizer, report.chat_history)
+    
+    headers_dict = {}
+    body = {
+        "job_id": report.job_id,
+        "room_id": report.room_id,
+        "room": report.room,
+        "started_at": datetime.fromtimestamp(report.started_at, UTC).isoformat().replace("+00:00", "Z")
+            if report.started_at
+            else None,
+        "ended_at": ended_at.isoformat().replace("+00:00", "Z"),
+        "summary": summary,
+    }
+    
+    dc_results = ctx.proc.userdata.get("dc_results")
+    if dc_results is not None:
+        body["results"] = dc_results
+
+    try:
+        http_session = utils.http_context.http_session()
+        timeout = aiohttp.ClientTimeout(total=10)
+        resp = await asyncio.shield(http_session.post(
+            "https://n8n.larynxai.in/webhook/28456216-8a3f-4153-a43b-73320dd5a536", timeout=timeout, json=body, headers=headers_dict
+        ))
+        if resp.status >= 400:
+            logger.error(f"Webhook failed: HTTP {resp.status} - {resp.reason}")
+        await resp.release()
+    except ToolError:
+        raise
+    except (TimeoutError, aiohttp.ClientError) as e:
+        raise ToolError(f"error: {e!s}") from e
+
+
+@server.rtc_session(agent_name="ecommerce-agent", on_session_end=_on_session_end_func)
 async def entrypoint(ctx: JobContext):
     
     # 1. Parse metadata safely
@@ -50,28 +103,31 @@ async def entrypoint(ctx: JobContext):
 
     # 2. Extract agent_type (default to customersupport if not found)
     agent_type = metadata_dict.get("agent_type", "customersupport")
-    agent_type="orderconfirmation"
+    
     # 3. Select Agent and Model conditionally
     if agent_type == "Cart":
-        target_llm_model = "gemini-2.5-flash-lite"
+        target_llm_model = "google/gemini-2.5-flash-lite"
         active_agent = AddtoCartAgent(metadata=metadata_str)
 
     elif agent_type == "Review":
-        target_llm_model = "gemini-2.5-flash-lite"
+        target_llm_model = "google/gemini-2.5-flash-lite"
         active_agent = ReviewAgent(metadata=metadata_str)
 
     elif agent_type == "orderconfirmation":
-        target_llm_model = "gemini-2.5-flash-lite"
+        target_llm_model = "google/gemini-2.5-flash-lite"
         active_agent = OrderConfirmationAgent(metadata=metadata_str)
 
     else:  # "customersupport" or fallback
-        target_llm_model = "gemini-2.5-flash-lite"
+        target_llm_model = "google/gemini-2.5-flash-lite"
         active_agent = CustomerSupportAgent()
+
+    # Initialize the data collection user data context state
+    ctx.proc.userdata["dc_results"] = None
 
     # 4. Initialize the session using the selected agent setup
     session = AgentSession(
         stt=sarvam.STT(model="saaras:v3",sample_rate=16000),
-        llm=google.LLM(
+        llm=inference.LLM(
             model=target_llm_model,
         ),
         tts=cartesia.TTS(
