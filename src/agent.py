@@ -137,7 +137,7 @@ async def entrypoint(ctx: JobContext):
             ),
         turn_handling=TurnHandlingOptions(turn_detection=MultilingualModel()),
         vad=ctx.proc.userdata["vad"],
-        preemptive_generation=True,
+        preemptive_generation=False,
     )
 
     await session.start(
