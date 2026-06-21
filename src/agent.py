@@ -135,7 +135,7 @@ async def entrypoint(ctx: JobContext):
         tts=cartesia.TTS(
             language="hi",
             model="sonic-3.5",
-            voice="6d7d9b23-2693-41e6-9566-d9fb65868523",
+            voice="605f8e6f-da68-4cb2-9931-1fc798664cc7",
             ),
         turn_handling=TurnHandlingOptions(turn_detection=MultilingualModel()),
         vad=ctx.proc.userdata["vad"],
