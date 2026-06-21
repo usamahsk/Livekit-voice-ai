@@ -58,7 +58,7 @@ async def _on_session_end_func(ctx: JobContext) -> None:
         return
 
     report = ctx.make_session_report()
-    summarizer = google.LLM(model="gemini-2.5-flash")
+    summarizer = google.LLM(model="gemini-2.5-flash",vertexai=True,)
     summary = await _summarize_session(summarizer, report.chat_history)
     
     headers_dict = {}
@@ -130,6 +130,7 @@ async def entrypoint(ctx: JobContext):
         stt=sarvam.STT(model="saaras:v3",sample_rate=16000),
         llm=google.LLM(
             model=target_llm_model,
+            vertexai=True,
         ),
         tts=cartesia.TTS(
             language="hi",

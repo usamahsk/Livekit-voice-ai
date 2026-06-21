@@ -37,4 +37,5 @@ venv
 .github/personal-instructions.md
 
 deploy_command
+livekit-gcp.json
 

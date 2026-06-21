@@ -20,6 +20,6 @@ curl -X POST "https://livekit.larynxai.in/make-call" \
   "target_number": "+919967835090",
   "customer_name": "John Doe",
   "intent": "outbound automated follow-up",
-  "agent_type": "Cart"
+  "agent_type": "Review"
 }'
 ```
