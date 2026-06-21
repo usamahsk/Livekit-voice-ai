@@ -58,7 +58,7 @@ async def _on_session_end_func(ctx: JobContext) -> None:
         return
 
     report = ctx.make_session_report()
-    summarizer = google.LLM(model="gemini-2.5-flash",vertexai=True,)
+    summarizer = google.LLM(model="gemini-2.5-flash-lite",vertexai=True,)
     summary = await _summarize_session(summarizer, report.chat_history)
     
     headers_dict = {}
@@ -135,7 +135,7 @@ async def entrypoint(ctx: JobContext):
         tts=cartesia.TTS(
             language="hi",
             model="sonic-3.5",
-            voice="605f8e6f-da68-4cb2-9931-1fc798664cc7",
+            voice="6d7d9b23-2693-41e6-9566-d9fb65868523",
             ),
         turn_handling=TurnHandlingOptions(turn_detection=MultilingualModel()),
         vad=ctx.proc.userdata["vad"],
