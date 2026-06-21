@@ -58,7 +58,7 @@ async def _on_session_end_func(ctx: JobContext) -> None:
         return
 
     report = ctx.make_session_report()
-    summarizer = google.LLM(model="google/gemini-2.5-flash")
+    summarizer = google.LLM(model="gemini-2.5-flash")
     summary = await _summarize_session(summarizer, report.chat_history)
     
     headers_dict = {}
@@ -107,19 +107,19 @@ async def entrypoint(ctx: JobContext):
     
     # 3. Select Agent and Model conditionally
     if agent_type == "Cart":
-        target_llm_model = "google/gemini-2.5-flash-lite"
+        target_llm_model = "gemini-2.5-flash-lite"
         active_agent = AddtoCartAgent(metadata=metadata_str)
 
     elif agent_type == "Review":
-        target_llm_model = "google/gemini-2.5-flash-lite"
+        target_llm_model = "gemini-2.5-flash-lite"
         active_agent = ReviewAgent(metadata=metadata_str)
 
     elif agent_type == "orderconfirmation":
-        target_llm_model = "google/gemini-2.5-flash-lite"
+        target_llm_model = "gemini-2.5-flash-lite"
         active_agent = OrderConfirmationAgent(metadata=metadata_str)
 
     else:  # "customersupport" or fallback
-        target_llm_model = "google/gemini-2.5-flash-lite"
+        target_llm_model = "gemini-2.5-flash-lite"
         active_agent = CustomerSupportAgent()
 
     # Initialize the data collection user data context state
