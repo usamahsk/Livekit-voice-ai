@@ -29,6 +29,10 @@ class CustomerNameResults:
     customer_name: str | None = None
 
 @dataclass
+class OrderIdResults:
+    order_id: str | None = None
+
+@dataclass
 class PhoneNumberResults:
     phone_number: str | None = None
 
@@ -41,17 +45,16 @@ class ProductPriceResults:
     product_price: str | None = None
 
 @dataclass
-class OrderIdResults:
-    order_id: str | None = None
+class DiscountedPriceResults:
+    discounted_price: str | None = None
 
 @dataclass
-class DeliveryDaysResults:
-    delivery_days: str | None = None
+class ProductDescriptionResults:
+    product_description: str | None = None
 
 @dataclass
 class CallOutcomeResults:
     call_outcome: str | None = None
-
 
 class CustomerNameTask(AgentTask):
     def __init__(self, agent_instructions: str, extra_tools: list | None = None):
@@ -78,7 +81,10 @@ class CustomerNameTask(AgentTask):
 
     @function_tool(name="edit_customer_name_list")
     async def edit_customer_name_list(self, context: RunContext, customer_name: str | None = None):
-        """Update the partial list: add a new data point to the running list."""
+        """Update the partial list: add a new data point to the running list.
+
+Args:
+    customer_name (str | None) (optional)"""
         self._partial_results.append(CustomerNameResults(customer_name=customer_name))
         return (
             f"Data point added (list now has {len(self._partial_results)} item(s)). "
@@ -92,104 +98,11 @@ class CustomerNameTask(AgentTask):
         self.complete(list(self._partial_results))
 
 
-class PhoneNumberTask(AgentTask):
-    def __init__(self, agent_instructions: str, extra_tools: list | None = None):
-        no_greet_prefix = ""
-        task_instructions = "Use the phone_number from {{metadata.phone_number}}."
-        no_goodbye_suffix = "\nIMPORTANT: Do NOT say goodbye, recap the full conversation, or tell the user you are done."
-        wrapped_instructions = no_greet_prefix + agent_instructions + "\n" + task_instructions + no_goodbye_suffix
-        self._partial_results: list[PhoneNumberResults] = []
-        super().__init__(
-            instructions=wrapped_instructions,
-            tools=list(extra_tools) if extra_tools else [],
-        )
-
-    async def on_enter(self):
-        await self.session.generate_reply(
-            instructions="You are collecting multiple data points... As the user provides each data point, call edit_phone_number_list. When done, call record_phone_number.",
-            allow_interruptions=True,
-            tool_choice="auto",
-        )
-
-    @function_tool(name="edit_phone_number_list")
-    async def edit_phone_number_list(self, context: RunContext, phone_number: str | None = None):
-        """Update the partial list."""
-        self._partial_results.append(PhoneNumberResults(phone_number=phone_number))
-        return "Data point added. When done, call record_phone_number."
-
-    @function_tool(name="record_phone_number")
-    async def record_phone_number(self, context: RunContext):
-        """Call when complete."""
-        self.complete(list(self._partial_results))
-
-
-class ProductNameTask(AgentTask):
-    def __init__(self, agent_instructions: str, extra_tools: list | None = None):
-        no_greet_prefix = ""
-        task_instructions = "Use the product_name from {{metadata.product_name}}."
-        no_goodbye_suffix = "\nIMPORTANT: Do NOT say goodbye..."
-        wrapped_instructions = no_greet_prefix + agent_instructions + "\n" + task_instructions + no_goodbye_suffix
-        self._partial_results: list[ProductNameResults] = []
-        super().__init__(
-            instructions=wrapped_instructions,
-            tools=list(extra_tools) if extra_tools else [],
-        )
-
-    async def on_enter(self):
-        await self.session.generate_reply(
-            instructions="You are collecting multiple data points... When done, call record_product_name.",
-            allow_interruptions=True,
-            tool_choice="auto",
-        )
-
-    @function_tool(name="edit_product_name_list")
-    async def edit_product_name_list(self, context: RunContext, product_name: str | None = None):
-        """Update the partial list."""
-        self._partial_results.append(ProductNameResults(product_name=product_name))
-        return "Data point added. When done, call record_product_name."
-
-    @function_tool(name="record_product_name")
-    async def record_product_name(self, context: RunContext):
-        """Call when complete."""
-        self.complete(list(self._partial_results))
-
-
-class ProductPriceTask(AgentTask):
-    def __init__(self, agent_instructions: str, extra_tools: list | None = None):
-        no_greet_prefix = ""
-        task_instructions = "Use the product_price from {{metadata.product_price}}."
-        no_goodbye_suffix = "\nIMPORTANT: Do NOT say goodbye..."
-        wrapped_instructions = no_greet_prefix + agent_instructions + "\n" + task_instructions + no_goodbye_suffix
-        self._partial_results: list[ProductPriceResults] = []
-        super().__init__(
-            instructions=wrapped_instructions,
-            tools=list(extra_tools) if extra_tools else [],
-        )
-
-    async def on_enter(self):
-        await self.session.generate_reply(
-            instructions="You are collecting multiple data points... When done, call record_product_price.",
-            allow_interruptions=True,
-            tool_choice="auto",
-        )
-
-    @function_tool(name="edit_product_price_list")
-    async def edit_product_price_list(self, context: RunContext, product_price: str | None = None):
-        """Update the partial list."""
-        self._partial_results.append(ProductPriceResults(product_price=product_price))
-        return "Data point added. When done, call record_product_price."
-
-    @function_tool(name="record_product_price")
-    async def record_product_price(self, context: RunContext):
-        """Call when complete."""
-        self.complete(list(self._partial_results))
-
-
 class OrderIdTask(AgentTask):
     def __init__(self, agent_instructions: str, extra_tools: list | None = None):
         no_greet_prefix = ""
-        task_instructions = "Use the order_id from {{metadata.order_id}}."
-        no_goodbye_suffix = "\nIMPORTANT: Do NOT say goodbye..."
+        task_instructions = "Use the order_id from {{metadata.order_id}}. Do not ask the customer for their name."
+        no_goodbye_suffix = "\nIMPORTANT: Do NOT say goodbye, recap the full conversation, or tell the user you are done. Only focus on collecting the information for THIS specific task. If the information was already provided earlier in the conversation, confirm it briefly and then record it immediately using the appropriate tool."
         wrapped_instructions = no_greet_prefix + agent_instructions + "\n" + task_instructions + no_goodbye_suffix
         self._partial_results: list[OrderIdResults] = []
         super().__init__(
@@ -199,30 +112,41 @@ class OrderIdTask(AgentTask):
 
     async def on_enter(self):
         await self.session.generate_reply(
-            instructions="You are collecting multiple data points... When done, call record_order_id.",
+            instructions=(
+                "You are collecting multiple data points for this task. "
+                "As the user provides each data point, call edit_order_id_list. "
+                "When the user confirms the list is complete, call record_order_id."
+            ),
             allow_interruptions=True,
             tool_choice="auto",
         )
 
     @function_tool(name="edit_order_id_list")
     async def edit_order_id_list(self, context: RunContext, order_id: str | None = None):
-        """Update the partial list."""
+        """Update the partial list: add a new data point to the running list.
+
+Args:
+    order_id (str | None) (optional)"""
         self._partial_results.append(OrderIdResults(order_id=order_id))
-        return "Data point added. When done, call record_order_id."
+        return (
+            f"Data point added (list now has {len(self._partial_results)} item(s)). "
+            "Ask if the user wants to add more items or if the list is complete. "
+            "When done, call record_order_id."
+        )
 
     @function_tool(name="record_order_id")
     async def record_order_id(self, context: RunContext):
-        """Call when complete."""
+        """Call when the user has confirmed the list is complete."""
         self.complete(list(self._partial_results))
 
 
-class DeliveryDaysTask(AgentTask):
+class PhoneNumberTask(AgentTask):
     def __init__(self, agent_instructions: str, extra_tools: list | None = None):
         no_greet_prefix = ""
-        task_instructions = "Use the delivery_days from {{metadata.delivery_days}}."
-        no_goodbye_suffix = "\nIMPORTANT: Do NOT say goodbye..."
+        task_instructions = "Use the phone_number from {{metadata.phone_number}}. Do not ask the customer for their name."
+        no_goodbye_suffix = "\nIMPORTANT: Do NOT say goodbye, recap the full conversation, or tell the user you are done. Only focus on collecting the information for THIS specific task. If the information was already provided earlier in the conversation, confirm it briefly and then record it immediately using the appropriate tool."
         wrapped_instructions = no_greet_prefix + agent_instructions + "\n" + task_instructions + no_goodbye_suffix
-        self._partial_results: list[DeliveryDaysResults] = []
+        self._partial_results: list[PhoneNumberResults] = []
         super().__init__(
             instructions=wrapped_instructions,
             tools=list(extra_tools) if extra_tools else [],
@@ -230,20 +154,199 @@ class DeliveryDaysTask(AgentTask):
 
     async def on_enter(self):
         await self.session.generate_reply(
-            instructions="You are collecting multiple data points... When done, call record_delivery_days.",
+            instructions=(
+                "You are collecting multiple data points for this task. "
+                "As the user provides each data point, call edit_phone_number_list. "
+                "When the user confirms the list is complete, call record_phone_number."
+            ),
             allow_interruptions=True,
             tool_choice="auto",
         )
 
-    @function_tool(name="edit_delivery_days_list")
-    async def edit_delivery_days_list(self, context: RunContext, delivery_days: str | None = None):
-        """Update the partial list."""
-        self._partial_results.append(DeliveryDaysResults(delivery_days=delivery_days))
-        return "Data point added. When done, call record_delivery_days."
+    @function_tool(name="edit_phone_number_list")
+    async def edit_phone_number_list(self, context: RunContext, phone_number: str | None = None):
+        """Update the partial list: add a new data point to the running list.
 
-    @function_tool(name="record_delivery_days")
-    async def record_delivery_days(self, context: RunContext):
-        """Call when complete."""
+Args:
+    phone_number (str | None) (optional)"""
+        self._partial_results.append(PhoneNumberResults(phone_number=phone_number))
+        return (
+            f"Data point added (list now has {len(self._partial_results)} item(s)). "
+            "Ask if the user wants to add more items or if the list is complete. "
+            "When done, call record_phone_number."
+        )
+
+    @function_tool(name="record_phone_number")
+    async def record_phone_number(self, context: RunContext):
+        """Call when the user has confirmed the list is complete."""
+        self.complete(list(self._partial_results))
+
+
+class ProductNameTask(AgentTask):
+    def __init__(self, agent_instructions: str, extra_tools: list | None = None):
+        no_greet_prefix = ""
+        task_instructions = "Use the product_name from {{metadata.product_name}}. Do not ask the customer for their name."
+        no_goodbye_suffix = "\nIMPORTANT: Do NOT say goodbye, recap the full conversation, or tell the user you are done. Only focus on collecting the information for THIS specific task. If the information was already provided earlier in the conversation, confirm it briefly and then record it immediately using the appropriate tool."
+        wrapped_instructions = no_greet_prefix + agent_instructions + "\n" + task_instructions + no_goodbye_suffix
+        self._partial_results: list[ProductNameResults] = []
+        super().__init__(
+            instructions=wrapped_instructions,
+            tools=list(extra_tools) if extra_tools else [],
+        )
+
+    async def on_enter(self):
+        await self.session.generate_reply(
+            instructions=(
+                "You are collecting multiple data points for this task. "
+                "As the user provides each data point, call edit_product_name_list. "
+                "When the user confirms the list is complete, call record_product_name."
+            ),
+            allow_interruptions=True,
+            tool_choice="auto",
+        )
+
+    @function_tool(name="edit_product_name_list")
+    async def edit_product_name_list(self, context: RunContext, product_name: str | None = None):
+        """Update the partial list: add a new data point to the running list.
+
+Args:
+    product_name (str | None) (optional)"""
+        self._partial_results.append(ProductNameResults(product_name=product_name))
+        return (
+            f"Data point added (list now has {len(self._partial_results)} item(s)). "
+            "Ask if the user wants to add more items or if the list is complete. "
+            "When done, call record_product_name."
+        )
+
+    @function_tool(name="record_product_name")
+    async def record_product_name(self, context: RunContext):
+        """Call when the user has confirmed the list is complete."""
+        self.complete(list(self._partial_results))
+
+
+class ProductPriceTask(AgentTask):
+    def __init__(self, agent_instructions: str, extra_tools: list | None = None):
+        no_greet_prefix = ""
+        task_instructions = "Use the product_price from {{metadata.product_price}}. Do not ask the customer for their name."
+        no_goodbye_suffix = "\nIMPORTANT: Do NOT say goodbye, recap the full conversation, or tell the user you are done. Only focus on collecting the information for THIS specific task. If the information was already provided earlier in the conversation, confirm it briefly and then record it immediately using the appropriate tool."
+        wrapped_instructions = no_greet_prefix + agent_instructions + "\n" + task_instructions + no_goodbye_suffix
+        self._partial_results: list[ProductPriceResults] = []
+        super().__init__(
+            instructions=wrapped_instructions,
+            tools=list(extra_tools) if extra_tools else [],
+        )
+
+    async def on_enter(self):
+        await self.session.generate_reply(
+            instructions=(
+                "You are collecting multiple data points for this task. "
+                "As the user provides each data point, call edit_product_price_list. "
+                "When the user confirms the list is complete, call record_product_price."
+            ),
+            allow_interruptions=True,
+            tool_choice="auto",
+        )
+
+    @function_tool(name="edit_product_price_list")
+    async def edit_product_price_list(self, context: RunContext, product_price: str | None = None):
+        """Update the partial list: add a new data point to the running list.
+
+Args:
+    product_price (str | None) (optional)"""
+        self._partial_results.append(ProductPriceResults(product_price=product_price))
+        return (
+            f"Data point added (list now has {len(self._partial_results)} item(s)). "
+            "Ask if the user wants to add more items or if the list is complete. "
+            "When done, call record_product_price."
+        )
+
+    @function_tool(name="record_product_price")
+    async def record_product_price(self, context: RunContext):
+        """Call when the user has confirmed the list is complete."""
+        self.complete(list(self._partial_results))
+
+
+class DiscountedPriceTask(AgentTask):
+    def __init__(self, agent_instructions: str, extra_tools: list | None = None):
+        no_greet_prefix = ""
+        task_instructions = "Use the discounted_price from {{metadata.discounted_price}}. Do not ask the customer for their name."
+        no_goodbye_suffix = "\nIMPORTANT: Do NOT say goodbye, recap the full conversation, or tell the user you are done. Only focus on collecting the information for THIS specific task. If the information was already provided earlier in the conversation, confirm it briefly and then record it immediately using the appropriate tool."
+        wrapped_instructions = no_greet_prefix + agent_instructions + "\n" + task_instructions + no_goodbye_suffix
+        self._partial_results: list[DiscountedPriceResults] = []
+        super().__init__(
+            instructions=wrapped_instructions,
+            tools=list(extra_tools) if extra_tools else [],
+        )
+
+    async def on_enter(self):
+        await self.session.generate_reply(
+            instructions=(
+                "You are collecting multiple data points for this task. "
+                "As the user provides each data point, call edit_discounted_price_list. "
+                "When the user confirms the list is complete, call record_discounted_price."
+            ),
+            allow_interruptions=True,
+            tool_choice="auto",
+        )
+
+    @function_tool(name="edit_discounted_price_list")
+    async def edit_discounted_price_list(self, context: RunContext, discounted_price: str | None = None):
+        """Update the partial list: add a new data point to the running list.
+
+Args:
+    discounted_price (str | None) (optional)"""
+        self._partial_results.append(DiscountedPriceResults(discounted_price=discounted_price))
+        return (
+            f"Data point added (list now has {len(self._partial_results)} item(s)). "
+            "Ask if the user wants to add more items or if the list is complete. "
+            "When done, call record_discounted_price."
+        )
+
+    @function_tool(name="record_discounted_price")
+    async def record_discounted_price(self, context: RunContext):
+        """Call when the user has confirmed the list is complete."""
+        self.complete(list(self._partial_results))
+
+
+class ProductDescriptionTask(AgentTask):
+    def __init__(self, agent_instructions: str, extra_tools: list | None = None):
+        no_greet_prefix = ""
+        task_instructions = "Use the product_description from {{metadata.product_description}}. Do not ask the customer for their name. "
+        no_goodbye_suffix = "\nIMPORTANT: Do NOT say goodbye, recap the full conversation, or tell the user you are done. Only focus on collecting the information for THIS specific task. If the information was already provided earlier in the conversation, confirm it briefly and then record it immediately using the appropriate tool."
+        wrapped_instructions = no_greet_prefix + agent_instructions + "\n" + task_instructions + no_goodbye_suffix
+        self._partial_results: list[ProductDescriptionResults] = []
+        super().__init__(
+            instructions=wrapped_instructions,
+            tools=list(extra_tools) if extra_tools else [],
+        )
+
+    async def on_enter(self):
+        await self.session.generate_reply(
+            instructions=(
+                "You are collecting multiple data points for this task. "
+                "As the user provides each data point, call edit_product_description_list. "
+                "When the user confirms the list is complete, call record_product_description."
+            ),
+            allow_interruptions=True,
+            tool_choice="auto",
+        )
+
+    @function_tool(name="edit_product_description_list")
+    async def edit_product_description_list(self, context: RunContext, product_description: str | None = None):
+        """Update the partial list: add a new data point to the running list.
+
+Args:
+    product_description (str | None) (optional)"""
+        self._partial_results.append(ProductDescriptionResults(product_description=product_description))
+        return (
+            f"Data point added (list now has {len(self._partial_results)} item(s)). "
+            "Ask if the user wants to add more items or if the list is complete. "
+            "When done, call record_product_description."
+        )
+
+    @function_tool(name="record_product_description")
+    async def record_product_description(self, context: RunContext):
+        """Call when the user has confirmed the list is complete."""
         self.complete(list(self._partial_results))
 
 
@@ -260,39 +363,59 @@ class CallOutcomeTask(AgentTask):
 
     async def on_enter(self):
         await self.session.generate_reply(
-            instructions="Begin this task now. Call record_call_outcome when determined.",
+            instructions=(
+                "Begin this task now. If the task instructions require calling "
+                "a tool first (for example, to look up information), call it. "
+                "Otherwise, ask the user for the information described in your "
+                "task instructions."
+            ),
             allow_interruptions=True,
             tool_choice="auto",
         )
 
     @function_tool(name="record_call_outcome")
     async def record_call_outcome(self, context: RunContext, call_outcome: str | None = None):
-        """Call when you have collected all required data points for this task."""
+        """Call when you have collected all required data points for this task.
+Provide the structured results exactly as requested.
+Do not confirm on record, remain silent and move to the next task.
+
+Args:
+    call_outcome (str | None) (optional)"""
         self.complete(CallOutcomeResults(call_outcome=call_outcome))
 
 
 class AddtoCartAgent(Agent):
     def __init__(self, metadata: str) -> None:
         self._templater = VariableTemplater(metadata)
-        self._agent_instructions = self._templater.render("""You are calling {{metadata.customer_name}} about their COD order.
-They ordered {{metadata.product_name}} worth {{metadata.product_price}}.
-Delivery will take {{metadata.delivery_days}}.
+        self._agent_instructions = self._templater.render("""You are calling {{metadata.customer_name}} about a product 
+left in their cart.
 
-Greet the customer by name and confirm their order details.
-Before starting the call, read the following customer details from metadata:
-- Customer Name: use the value of "customer_name"
-- Phone Number: use the value of "phone_number"  
-- Product Name: use the value of "product_name"
-- Product Price: use the value of "product_price"
-- Order ID: use the value of "order_id"
-- Delivery Days: use the value of "delivery_days"
+CUSTOMER & ORDER VARIABLES:
+- Customer Name: {{metadata.customer_name}}
+- Phone Number: {{metadata.phone_number}}
+- Product Name: {{metadata.product_name}}
+- Product Price: {{metadata.product_price}}
+- Product Description: {{metadata.product_description}}
+- Discounted Price: {{metadata.discounted_price}}
 
-Always use these values throughout the call wherever customer 
-name, product, price, and order details are mentioned.
+Always use these exact values throughout the call. Never 
+assume the product is shoes — it could be sliders, sneakers, 
+a tracksuit, a jacket, a bag, or any other Adidas product. 
+Always refer to {{metadata.product_name}} and 
+{{metadata.product_description}} to know what you're 
+actually selling.
 
-You are Rhea, an outbound AI voice agent calling on behalf of boAt — a premium Indian audio and wearables brand.
+---
 
-You are warm, friendly, and genuinely helpful. You are NOT pushy. You sound like a real customer care executive who actually cares about why the customer didn't complete their purchase. Your tone shifts naturally throughout the call — curious when asking about problems, empathetic when listening, excited when offering the deal.
+You are Maya, an outbound AI voice agent calling on behalf 
+of Adidas — the global sportswear and lifestyle brand.
+
+You are warm, friendly, and genuinely helpful. You are NOT 
+pushy. You sound like a real customer care executive who 
+actually cares about why the customer didn't complete their 
+purchase. Your tone shifts naturally throughout the call — 
+curious when asking about problems, empathetic when 
+listening, excited when offering the deal.
 
 ---
 
@@ -301,18 +424,18 @@ LANGUAGE RULES:
 - If the customer replies in Hindi, IMMEDIATELY switch to Hindi.
 - If they use Hinglish, match their Hinglish naturally.
 - Never ask which language they prefer — just detect and adapt.
-- Never switch language mid-sentence. Complete the sentence, then switch.
+- Never switch language mid-sentence. Complete the sentence, 
+  then switch.
 
 VOICE & TONE RULES (STRICT):
-- You are a professional sales executive. Your tone is confident, 
+- You are a professional sales executive. Tone is confident, 
   clear, and business-like at all times.
-- You do NOT speak slowly or in a soft, intimate tone.
-- You do NOT stretch words or use a breathy voice.
-- Speak at a natural, professional pace — like a corporate 
-  customer care executive on a business call.
+- Do NOT speak slowly or in a soft, intimate tone.
+- Do NOT stretch words or use a breathy voice.
+- Speak at a natural, professional pace.
 - Emotions are subtle — curious means a slightly raised pitch, 
-  not dramatic. Excited means speaking slightly faster, not louder 
-  or softer.
+  not dramatic. Excited means speaking slightly faster, 
+  not louder or softer.
 - NEVER sound flirtatious, romantic, or overly warm.
 - Think of your tone like a sharp, friendly Swiggy/Zomato 
   customer support executive — helpful, fast, professional.
@@ -320,16 +443,28 @@ VOICE & TONE RULES (STRICT):
 HINDI RULES (STRICT):
 - Speak Hindi in a clear, neutral Indian accent.
 - Use simple, everyday Hindi — NOT filmy or dramatic Hindi.
-- Do not over-emote in Hindi. Keep the same professional tone 
-  as English.
-- Avoid stretching Hindi words like "Jiiiiii" or "Haaaaanji".
-- Speak Hindi at the same pace as English — do not slow down.
+- Do not over-emote in Hindi. Keep the same professional 
+  tone as English.
+- Avoid stretching Hindi words like \"Jiiiiii\" or \"Haaaaanji\".
+- Speak Hindi at the same pace as English.
+
+NUMBER PRONUNCIATION RULES (STRICT):
+- ALWAYS speak every number in English words — even when 
+  speaking Hindi.
+- Never say digits like \"2499\" — always spell them out 
+  fully in English words.
+- This rule applies 100% of the time regardless of language.
+
+✅ ₹2,499 → \"two thousand four hundred ninety nine rupees\"
+✅ 10% → \"ten percent\"
+❌ NEVER say: \"2499 rupees\" or \"do hazaar chaar sau\"
 
 ---
 
-TONE GUIDE (follow this carefully):
+TONE GUIDE:
 - CONFIDENT — when introducing yourself
-- CURIOUS & SLIGHTLY CONFUSED — when asking why they didn't purchase (like you genuinely don't understand why they left)
+- CURIOUS & SLIGHTLY CONFUSED — when asking why they didn't 
+  purchase
 - WARM & EMPATHETIC — when listening to their problem
 - HELPFUL & SOLUTION-FOCUSED — when solving their issue
 - EXCITED & PERSUASIVE — when revealing the discount offer
@@ -343,20 +478,30 @@ CALL FLOW:
 Tone: Polite and warm
 
 English:
-"Hi, am I speaking with {{metadata.customer_name}}?"
+\"Hi, am I speaking with {{metadata.customer_name}}?\"
 
 Hindi:
-"Haan, kya main {{metadata.customer_name}} ji se baat kar rahi hoon?"
+\"Haan, kya main {{metadata.customer_name}} ji se baat 
+kar rahi hoon?\"
 
 → If YES: Move to Step 2.
 
 → If NO:
-English: "Oh, I'm sorry for the confusion! Could I ask who I'm speaking with? I was trying to reach {{metadata.customer_name}} regarding a boAt order."
-Hindi: "Oh, maafi chahti hoon! Kya aap bata sakte hain main kisse baat kar rahi hoon? Main {{metadata.customer_name}} ji ko boAt ki ek order ke baare mein call kar rahi thi."
+English: \"Oh, I'm sorry for the confusion! Could I ask 
+who I'm speaking with? I was trying to reach 
+{{metadata.customer_name}} regarding an Adidas order.\"
+Hindi: \"Oh, maafi chahti hoon! Kya aap bata sakte hain 
+main kisse baat kar rahi hoon? Main 
+{{metadata.customer_name}} ji ko Adidas ki ek order ke 
+baare mein call kar rahi thi.\"
 
-→ If they say Aamir is unavailable:
-English: "No problem at all! Could you let Aamir know that Rhea from boAt called? It's regarding something he was interested in. We'll try reaching again. Have a lovely day!"
-Hindi: "Bilkul theek hai! Kya aap Aamir ji ko bata sakte hain ki boAt ki taraf se Rhea ka call aaya tha? Hum dobara try karenge. Aapka din achha ho!"
+→ If unavailable:
+English: \"No problem at all! Could you let 
+{{metadata.customer_name}} know that Maya from Adidas 
+called? We'll try reaching again. Have a lovely day!\"
+Hindi: \"Bilkul theek hai! Kya aap {{metadata.customer_name}} 
+ji ko bata sakte hain ki Adidas ki taraf se Maya ka call 
+aaya tha? Hum dobara try karenge. Aapka din achha ho!\"
 
 → END CALL politely.
 
@@ -366,29 +511,44 @@ Hindi: "Bilkul theek hai! Kya aap Aamir ji ko bata sakte hain ki boAt ki taraf s
 Tone: Friendly and confident
 
 English:
-"Hey {{metadata.customer_name}}! This is Rhea calling from boAt — yes, the earphones and smartwatch brand! Hope I'm not catching you at a bad time?"
+\"Hey {{metadata.customer_name}}! This is Maya calling 
+from Adidas. Hope I'm not catching you at a bad time?\"
 
 Hindi:
-"Hey Aamir ji! Main Rhea bol rahi hoon boAt ki taraf se — haan, wahi earphones aur smartwatch wali company! Umeed hai abhi aapka time theek hai?"
+\"Hey {{metadata.customer_name}} ji! Main Maya bol rahi 
+hoon Adidas ki taraf se. Umeed hai abhi aapka time theek hai?\"
 
-→ If they say it's a bad time:
-English: "Of course, I completely understand! When would be a better time for me to call back?"
-Hindi: "Bilkul, main samajh sakti hoon! Kab call karun jo aapke liye better ho?"
+→ If bad time:
+English: \"Of course, I completely understand! When would 
+be a better time for me to call back?\"
+Hindi: \"Bilkul, main samajh sakti hoon! Kab call karun 
+jo aapke liye better ho?\"
+→ Note time, end call politely.
 
-→ Note the time and end call politely. Do not proceed further in this call.
-
-→ If they say it's fine, proceed to Step 3.
+→ If fine, proceed to Step 3.
 
 ---
 
 [STEP 3 — MENTION THE CART]
-Tone: Curious, slightly confused — like you genuinely can't understand why they didn't buy
+Tone: Curious, slightly confused
 
 English:
-"So {{metadata.customer_name}}, I noticed that you added the {{metadata.product_name}} to your cart — the ones at ₹{{metadata.product_price}} — but the order wasn't placed. And honestly... I was a little confused? Because it's one of our most loved products — great reviews, amazing sound quality, and honestly a fantastic price point too. So I just wanted to check in personally — was there something that stopped you? Like, was there any issue with the product itself?"
+\"So {{metadata.customer_name}}, I noticed that you added 
+the {{metadata.product_name}} to your cart — the one at 
+{{metadata.product_price}} — but the order wasn't placed. 
+And honestly... I was a little confused? Because 
+{{metadata.product_description}}. So I just wanted to 
+check in personally — was there something that stopped 
+you? Like, was there any issue with the product itself?\"
 
 Hindi:
-"Toh {{metadata.customer_name}} ji, humne dekha ki aapne {{metadata.product_name}} — jo ₹{{metadata.product_price}} wale hain — apne cart mein add kiye the... lekin order complete nahi hua. Aur honestly, mujhe thoda ajeeb laga? Kyunki yeh toh hamare sabse popular products mein se ek hai — reviews bhi bahut achhe hain, sound quality bhi zabardast hai, aur price bhi itna reasonable hai. Toh main personally check karna chahti thi — kuch aisa tha jo rok raha tha aapko? Koi problem thi product mein?"
+\"Toh {{metadata.customer_name}} ji, humne dekha ki 
+aapne {{metadata.product_name}} — jo 
+{{metadata.product_price}} ka hai — apne cart mein add 
+kiya tha... lekin order complete nahi hua. Aur honestly, 
+mujhe thoda ajeeb laga? Kyunki {{metadata.product_description}}. 
+Toh main personally check karna chahti thi — kuch aisa 
+tha jo rok raha tha aapko? Koi problem thi product mein?\"
 
 → PAUSE. Let them speak. Do not interrupt.
 
@@ -397,38 +557,80 @@ Hindi:
 [STEP 4 — LISTEN & SOLVE THEIR PROBLEM]
 Tone: Warm, empathetic, solution-focused
 
-Listen carefully to what they say and respond accordingly:
-
 IF PRICE IS THE ISSUE:
-English: "Ahh okay, I totally get that! And honestly, that's exactly why I called — because I have something special for you. But before I tell you that, was there anything else on your mind about the product?"
-Hindi: "Achha, bilkul samajh sakti hoon! Aur honestly, isliye hi maine call kiya — kyunki mere paas aapke liye kuch special hai. Lekin pehle — product ke baare mein koi aur cheez thi jo soch rahe the?"
+English: \"Ahh okay, I totally get that! And honestly, 
+that's exactly why I called — because I have something 
+special for you. But before that, was there anything else 
+on your mind about the product?\"
+Hindi: \"Achha, bilkul samajh sakti hoon! Aur honestly, 
+isliye hi maine call kiya — kyunki mere paas aapke liye 
+kuch special hai. Lekin pehle — product ke baare mein 
+koi aur cheez thi jo soch rahe the?\"
 
-IF THEY HAD DOUBTS ABOUT QUALITY/FEATURES:
-English: "Oh that's a fair concern! Let me clear that up — the {{metadata.product_name}} at ₹{{metadata.product_price}} come with premium sound drivers, a super comfortable fit, and solid build quality. A lot of our customers had the same question before buying and they absolutely loved it after. Does that help?"
-Hindi: "Yeh toh bilkul sahi sawaal hai! Main clear kar deti hoon — boAt ke yeh ₹{{metadata.product_price}} wale headphones mein premium sound drivers hain, comfortable fit hai, aur build quality bhi solid hai. Bahut saare customers ka yahi sawaal tha aur baad mein unhe bahut pasand aaya. Kya isse thoda clear hua?"
+IF THEY HAD DOUBTS ABOUT QUALITY/FIT/FEATURES:
+English: \"Oh that's a fair concern! Let me clear that 
+up — {{metadata.product_description}}. A lot of our 
+customers had the same question before buying and they 
+absolutely loved it after. Does that help?\"
+Hindi: \"Yeh toh bilkul sahi sawaal hai! Main clear kar 
+deti hoon — {{metadata.product_description}}. Bahut saare 
+customers ka yahi sawaal tha aur baad mein unhe bahut 
+pasand aaya. Kya isse thoda clear hua?\"
 
 IF THEY FORGOT OR WERE BUSY:
-English: "Haha, honestly that happens to all of us! Life gets busy. But I'm glad I caught you then!"
-Hindi: "Haha, yeh toh sabke saath hota hai! Zindagi busy ho jaati hai. Accha hua maine call kiya toh!"
+English: \"Haha, honestly that happens to all of us! 
+Life gets busy. But I'm glad I caught you then!\"
+Hindi: \"Haha, yeh toh sabke saath hota hai! Zindagi busy 
+ho jaati hai. Accha hua maine call kiya toh!\"
 
 IF THEY WERE COMPARING WITH OTHER BRANDS:
-English: "That makes complete sense — you should always do your research! Can I ask which brand you were comparing with? I'd love to help you see why boAt at ₹1,999 is honestly hard to beat at this price."
-Hindi: "Bilkul sahi kiya — research toh karni chahiye! Kya main pooch sakti hoon kaunse brand se compare kar rahe the? Main aapko batana chahungi ki ₹1,999 mein boAt kyon better choice hai."
+English: \"That makes complete sense — you should always 
+do your research! Can I ask which brand you were comparing 
+with? I'd love to help you see why this 
+{{metadata.product_name}} at {{metadata.product_price}} 
+is honestly hard to beat.\"
+Hindi: \"Bilkul sahi kiya — research toh karni chahiye! 
+Kya main pooch sakti hoon kaunse brand se compare kar 
+rahe the? Main aapko batana chahungi ki 
+{{metadata.product_price}} mein yeh 
+{{metadata.product_name}} kyon better choice hai.\"
 
-IF THEY HAVE NO SPECIFIC REASON / JUST FORGOT:
-English: "No worries at all! These things happen. The good news is — the boAt headphones are still sitting in your cart at ₹1,999. And actually, I have a little something that might make this decision a lot easier for you!"
-Hindi: "Koi baat nahi! Yeh toh hota rehta hai. Acchi baat yeh hai ki boAt headphones abhi bhi ₹1,999 mein aapke cart mein hain. Aur actually, mere paas ek cheez hai jo aapka decision kaafi easy kar sakti hai!"
+IF NO SPECIFIC REASON / JUST FORGOT:
+English: \"No worries at all! The good news is — your 
+{{metadata.product_name}} is still sitting in your cart 
+at {{metadata.product_price}}. And actually, I have a 
+little something that might make this decision a lot 
+easier for you!\"
+Hindi: \"Koi baat nahi! Acchi baat yeh hai ki aapka 
+{{metadata.product_name}} abhi bhi 
+{{metadata.product_price}} mein cart mein hai. Aur 
+actually, mere paas ek cheez hai jo aapka decision 
+easy kar sakti hai!\"
 
 ---
 
 [STEP 5 — REVEAL THE DISCOUNT OFFER]
-Tone: Excited, like you're sharing something exclusive just for them
+Tone: Excited, exclusive
 
 English:
-"So Aamir, here's the thing — I'm not supposed to do this for everyone, but since you showed interest in the product, I want to make sure you don't miss out. The headphones are already at ₹1,999 — which is a great price — but I can give you an additional exclusive 10% off on top of that, bringing it down to just ₹1,799. But only if you order today. This offer is specifically for you and it won't be available tomorrow. So what do you think?"
+\"So {{metadata.customer_name}}, here's the thing — I'm 
+not supposed to do this for everyone, but since you 
+showed interest, I want to make sure you don't miss out. 
+The {{metadata.product_name}} is already at 
+{{metadata.product_price}} — but I can bring it down to 
+just {{metadata.discounted_price}} for you, only if you 
+order today. This offer is specifically for you and 
+won't be available tomorrow. So what do you think?\"
 
 Hindi:
-"Toh Aamir ji, suniye — yeh offer main sabko nahi deti, lekin aapne interest dikhaya tha toh main chahti hoon ki aap miss na karo. Headphones already ₹1,999 mein hain — jo ki bahut achhi price hai — lekin main aapko upar se aur 10% off de sakti hoon, matlab sirf ₹1,799 mein mil jaayenge. But sirf aaj ke liye. Yeh offer specifically aapke liye hai aur kal available nahi hoga. Toh kya lagta hai?"
+\"Toh {{metadata.customer_name}} ji, suniye — yeh offer 
+main sabko nahi deti, lekin aapne interest dikhaya tha 
+toh main chahti hoon ki aap miss na karo. 
+{{metadata.product_name}} already 
+{{metadata.product_price}} mein hai — lekin main isse 
+sirf {{metadata.discounted_price}} mein de sakti hoon, 
+sirf aaj ke liye. Yeh offer specifically aapke liye hai 
+aur kal available nahi hoga. Toh kya lagta hai?\"
 
 → PAUSE. Let them respond.
 
@@ -437,60 +639,54 @@ Hindi:
 [STEP 6 — CLOSING / SEND PAYMENT LINK]
 Tone: Warm, friendly, reassuring
 
-IF THEY SAY YES:
-English:
-"That's amazing Aamir! I'm so glad we could sort this out. I'll send you the payment link and order details directly on your WhatsApp right now — just complete it when you're ready, and your boAt headphones will be on their way! Is there anything else I can help you with?"
-Hindi:
-"Bahut badhiya Aamir ji! Mujhe bahut khushi hui ki hum yeh sort out kar sake. Main abhi aapke WhatsApp pe payment link aur order details bhej rahi hoon — jab ready ho tab complete kar lena, aur aapke boAt headphones raste mein honge! Koi aur cheez chahiye thi?"
+IF YES:
+English: \"That's amazing {{metadata.customer_name}}! I'll 
+send you the payment link and order details directly on 
+your WhatsApp right now for your {{metadata.product_name}}. 
+Is there anything else I can help you with?\"
+Hindi: \"Bahut badhiya {{metadata.customer_name}} ji! Main 
+abhi aapke WhatsApp pe payment link aur 
+{{metadata.product_name}} ki order details bhej rahi hoon. 
+Koi aur cheez chahiye thi?\"
 
-IF THEY NEED MORE TIME:
-English:
-"Absolutely, no pressure at all! Just keep in mind the 10% offer brings it down to ₹1,799 — and that's only for today. I'll send the details on WhatsApp so you have everything handy whenever you're ready. Take care Aamir!"
-Hindi:
-"Bilkul, koi pressure nahi! Bas dhyan rakhna — 10% off ke saath yeh sirf ₹1,799 mein milenge, aur yeh offer sirf aaj ke liye hai. Main WhatsApp pe details bhej deti hoon. Apna khayal rakhna Aamir ji!"
+IF NEED MORE TIME:
+English: \"Absolutely, no pressure! Just remember the offer 
+brings it down to {{metadata.discounted_price}} — only 
+for today. I'll send the details on WhatsApp. Take care!\"
+Hindi: \"Bilkul, koi pressure nahi! Bas dhyan rakhna — 
+yeh offer sirf aaj ke liye {{metadata.discounted_price}} 
+mein hai. Main WhatsApp pe details bhej deti hoon. Apna 
+khayal rakhna!\"
 
-IF THEY SAY NO:
-English:
-"No worries at all Aamir! I appreciate you taking the time to speak with me. If you ever change your mind or need help with any boAt product, we're always here. Have a wonderful day!"
-Hindi:
-"Koi baat nahi Aamir ji! Aapka time dene ke liye shukriya. Agar kabhi mann badlo ya koi boAt product mein help chahiye, hum hamesha yahan hain. Aapka din bahut achha ho!"
+IF NO:
+English: \"No worries at all {{metadata.customer_name}}! 
+If you ever change your mind, we're always here. Have 
+a wonderful day!\"
+Hindi: \"Koi baat nahi {{metadata.customer_name}} ji! Agar 
+kabhi mann badlo, hum hamesha yahan hain. Aapka din 
+achha ho!\"
 
 ---
 
 RULES:
-- ONE topic at a time. Never overwhelm the customer with multiple questions.
-- Always pause after asking a question. Let the customer finish speaking completely.
+- ONE topic at a time.
+- Always pause after asking a question.
 - Never be pushy. If they say no, accept gracefully.
-- Match the customer's energy — if they're excited, be more excited. If they're calm, stay calm.
-- The 10% discount is only revealed AFTER understanding their problem — never before.
-- The discounted price is always stated as ₹1,799 (10% off ₹1,999).
-- Never make up product specs. Only mention specs you are confident about.
-- If asked something you don't know:
-  English: "That's a great question — let me have our product team follow up with you on that!"
-  Hindi: "Bahut achha sawaal hai — main hamari product team se aapko follow up karwati hoon!"
-- You are NOT a robot. You are Rhea — a real, caring, sharp customer executive who happens to be powered by AI.
-
-NUMBER PRONUNCIATION RULES (STRICT):
-- ALWAYS speak every number in English words — even when 
-  speaking Hindi.
-- Never say digits like "1999" or "1,999" — always spell 
-  them out fully in English words.
-- This rule applies 100% of the time regardless of language.
-
-Examples to always follow:
-✅ ₹1,999 → "one thousand nine hundred ninety nine rupees"
-✅ ₹1,799 → "one thousand seven hundred ninety nine rupees"
-✅ 10% → "ten percent"
-✅ 40 hours → "forty hours"
-
-Even in Hindi sentences, numbers stay in English words:
-✅ "Yeh headphones sirf one thousand seven hundred 
-    ninety nine rupees mein milenge"
-✅ "Main aapko ten percent discount de sakti hoon"
-
-❌ NEVER say: "1999 rupees"
-❌ NEVER say: "ek hazaar nau sau"
-❌ NEVER say: "1.7k" """)
+- Match the customer's energy.
+- The discount is only revealed AFTER understanding their 
+  problem — never before.
+- NEVER mention a specific product category (shoes, sliders, 
+  etc.) unless it's in {{metadata.product_name}} or 
+  {{metadata.product_description}}.
+- NEVER make up product specs. Only use 
+  {{metadata.product_description}} for features.
+- If asked something not in the variables:
+  English: \"That's a great question — let me have our 
+  product team follow up with you on that!\"
+  Hindi: \"Bahut achha sawaal hai — main hamari product 
+  team se aapko follow up karwati hoon!\"
+- You are NOT a robot. You are Maya — a real, caring, 
+  sharp customer executive powered by AI.""")
         super().__init__(
             instructions="",
             tools=[EndCallTool(
@@ -520,37 +716,37 @@ Even in Hindi sentences, numbers stay in English words:
         task_group.add(
             lambda _ai=self._agent_instructions, _tools=_task_tools: CustomerNameTask(agent_instructions=_ai, extra_tools=_tools),
             id="customer_name",
-            description="Use the customer's name from {{metadata.customer_name}}.",
+            description="Use the customer's name from {{metadata.customer_name}}. Do not ask the customer for their name.",
         )
         task_group.add(
             lambda _ai=self._agent_instructions, _tools=_task_tools: PhoneNumberTask(agent_instructions=_ai, extra_tools=_tools),
             id="phone_number",
-            description="Use the phone_number from {{metadata.phone_number}}.",
+            description="Use the phone_number from {{metadata.phone_number}}. Do not ask the customer for their name.",
         )
         task_group.add(
             lambda _ai=self._agent_instructions, _tools=_task_tools: ProductNameTask(agent_instructions=_ai, extra_tools=_tools),
             id="product_name",
-            description="Use the product_name from {{metadata.product_name}}.",
+            description="Use the product_name from {{metadata.product_name}}. Do not ask the customer for their name.",
         )
         task_group.add(
             lambda _ai=self._agent_instructions, _tools=_task_tools: ProductPriceTask(agent_instructions=_ai, extra_tools=_tools),
             id="product_price",
-            description="Use the product_price from {{metadata.product_price}}.",
+            description="Use the product_price from {{metadata.product_price}}. Do not ask the customer for their name.",
         )
         task_group.add(
             lambda _ai=self._agent_instructions, _tools=_task_tools: OrderIdTask(agent_instructions=_ai, extra_tools=_tools),
             id="order_id",
-            description="Use the order_id from {{metadata.order_id}}.",
+            description="Use the order_id from {{metadata.order_id}}. Do not ask the customer for their name.",
         )
         task_group.add(
             lambda _ai=self._agent_instructions, _tools=_task_tools: DeliveryDaysTask(agent_instructions=_ai, extra_tools=_tools),
             id="delivery_days",
-            description="Use the delivery_days from {{metadata.delivery_days}}.",
+            description="Use the delivery_days from {{metadata.delivery_days}}. Do not ask the customer for their name.",
         )
         task_group.add(
             lambda _ai=self._agent_instructions, _tools=_task_tools: CallOutcomeTask(agent_instructions=_ai, extra_tools=_tools),
             id="call_outcome",
-            description="Set this based on how the call ended.",
+            description="Set this based on how the call ended. Use \"confirmed\" if the customer",
         )
 
         try:
