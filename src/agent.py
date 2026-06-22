@@ -20,7 +20,7 @@ from livekit.agents import (
     room_io,
 )
 from livekit.plugins import (
-    ai_coustics,
+    # ai_coustics,
     silero,
     sarvam,
     cartesia,
@@ -146,13 +146,13 @@ async def entrypoint(ctx: JobContext):
     await session.start(
         agent=active_agent,
         room=ctx.room,
-        room_options=room_io.RoomOptions(
-            audio_input=room_io.AudioInputOptions(
-                noise_cancellation=ai_coustics.audio_enhancement(
-                    model=ai_coustics.EnhancerModel.QUAIL_VF_L,
-                ),
-            ),
-        ),
+        # room_options=room_io.RoomOptions(
+        #     audio_input=room_io.AudioInputOptions(
+        #         noise_cancellation=ai_coustics.audio_enhancement(
+        #             model=ai_coustics.EnhancerModel.QUAIL_VF_L,
+        #         ),
+        #     ),
+        # ),
     )
 
 if __name__ == "__main__":
