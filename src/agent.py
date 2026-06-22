@@ -2,6 +2,7 @@ import logging
 import json
 import asyncio
 import aiohttp
+import os
 from datetime import datetime,UTC
 from dotenv import load_dotenv
 
@@ -135,7 +136,7 @@ async def entrypoint(ctx: JobContext):
         tts=cartesia.TTS(
             language="hi",
             model="sonic-3.5",
-            voice="605f8e6f-da68-4cb2-9931-1fc798664cc7",
+            voice=os.getenv("CARTESIA_VOICE_ID"),
             ),
         turn_handling=TurnHandlingOptions(turn_detection=MultilingualModel()),
         vad=ctx.proc.userdata["vad"],
