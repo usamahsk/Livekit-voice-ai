@@ -690,7 +690,7 @@ RULES:
             tools=[EndCallTool(
                 extra_description="""""",
                 end_instructions="""Thank the user for their time and say goodbye.""",
-                delete_room=False,
+                delete_room=True,
             )],
         )
     async def on_enter(self):
@@ -799,7 +799,7 @@ RULES:
             if not end_call_tool:
                 end_call_tool = EndCallTool(
                     end_instructions=end_instructions,
-                    delete_room=False,
+                    delete_room=True,
                 )
 
             tools_with_end_call = [*self.tools, end_call_tool]

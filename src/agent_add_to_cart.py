@@ -785,7 +785,7 @@ RULES:
             if not end_call_tool:
                 end_call_tool = EndCallTool(
                     end_instructions=end_instructions,
-                    delete_room=False,
+                    delete_room=True,
                 )
 
             tools_with_end_call = [*self.tools, end_call_tool]

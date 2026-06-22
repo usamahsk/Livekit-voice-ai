@@ -276,7 +276,7 @@ STRICT RULES:
             tools=[EndCallTool(
                 extra_description="""""",
                 end_instructions="""Thank the user for their time and say goodbye.""",
-                delete_room=False,
+                delete_room=True,
             )],
         )
 
